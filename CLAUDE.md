@@ -164,14 +164,132 @@ where `β_σS = Cov(Δσ, ΔS/S) / Var(ΔS/S)` estimated from rolling 60-day reg
 - Compute Heston delta via finite difference on calibrated model
 - Captures smile dynamics that pure BS delta misses
 
-### Model 5: Deep Hedging (ML — Buehler et al. 2019) — 🔲 Planned
+### Model 5: Deep Hedging (Buehler et al. 2019) — 🔲 Planned
 
-- Architecture: LSTM or feedforward with recurrence in position variable
-- Objective: minimize `CVaR_{α}(terminal hedging P&L)` with risk aversion parameter λ
-- Input features per day: `[S_t/K, σ_IV_t, t/T, Δ_{t-1}, cost_per_unit]`
-- Training data: `^twse_d.csv` full history 1995–2024 (30 years of daily returns)
-- Evaluate on 2025 out-of-sample; report RMSE of daily P&L vs. BS baseline
-- Reference: [Buehler et al. 2019](https://arxiv.org/abs/1802.03042)
+**Reference paper:** [Buehler et al. 2019, arXiv:1802.03042](https://arxiv.org/abs/1802.03042)  
+**Starting point:** `DerivativesHedging.ipynb` (in project root) — a working TF1 implementation for call options on synthetic GBM paths.
+
+#### Compatibility Assessment
+
+The notebook implements the exact paper (policy gradient + LSTM + CVaR objective) and is **directly adaptable** for this project, but requires 6 concrete changes before it can run on our data:
+
+| Issue | Notebook (as-is) | Required for our project |
+|-------|-----------------|--------------------------|
+| **Framework** | TensorFlow 1.x (`tf.Session`, `tf.placeholder`, `tf.contrib.rnn`) | Migrate to TF2/Keras or PyTorch — TF1 APIs are removed in TF2+ |
+| **Option type** | Long CALL: payoff = `max(S_T − K, 0)` | Short PUT: payoff = `−max(K − S_T, 0)`; flip P&L sign |
+| **State variables** | `[S_t]` only | `[S_t/K, σ_IV_t, t/T, Δ_{t-1}, cost_per_unit]` — 5 features |
+| **Transaction costs** | Not included | `NT$100 × |Δh|` per rebalance; affects CVaR objective |
+| **Training data** | 50,000 GBM simulated paths | Rolling 19-day windows from `^twse_d.csv` (1995–2024); 7,452 windows available |
+| **Multipliers** | Normalized (S_0=100, K=100) | Scale by OPT_MULT=50, FUT_MULT=200; hedge ratio = 0.25 |
+
+#### Adaptation Instructions
+
+**Step 1 — Migrate to TF2/Keras**
+
+Replace the `Agent` class with a standard Keras model:
+```python
+import tensorflow as tf
+from tensorflow import keras
+
+def build_deep_hedge_model(time_steps, n_features, lstm_nodes=[62, 46, 46]):
+    inputs = keras.Input(shape=(time_steps, n_features))
+    x = inputs
+    for n in lstm_nodes[:-1]:
+        x = keras.layers.LSTM(n, return_sequences=True)(x)
+    x = keras.layers.LSTM(lstm_nodes[-1], return_sequences=True)(x)
+    strategy = keras.layers.Dense(1, activation='tanh')(x)   # δ_t ∈ [−1, 1]
+    return keras.Model(inputs, strategy)
+```
+
+**Step 2 — Change option type and position sign**
+
+The notebook hedges a LONG CALL. We hold a SHORT PUT, so:
+```python
+# Original (long call):
+option_payoff = np.maximum(S_T - K, 0)
+hedging_pnl   = -option_payoff + sum(delta_t * dS_t)
+
+# Our project (short put, with multipliers):
+option_payoff = np.maximum(K - S_T, 0)                      # put payoff
+hedging_pnl   = +option_payoff * OPT_MULT \                 # short put: receive payoff negated
+                - sum(delta_t * dF_t * FUT_MULT) \           # short futures: h < 0
+                - sum(NT100 * abs(delta_t - delta_{t-1}))    # transaction costs
+```
+
+**Step 3 — Expand state variables**
+
+Current state: just `[S_t]`. Required 5-feature state:
+```python
+# Build state matrix shape (T, n_paths, 5)
+state[:, :, 0] = S_t / K                           # moneyness
+state[:, :, 1] = IV_t                              # implied vol (back-solve from TXO chain)
+state[:, :, 2] = (T - t) / T                       # normalised time remaining
+state[:, :, 3] = delta_{t-1}                       # lagged delta (recurrent position)
+state[:, :, 4] = TX_COST / (S_t * FUT_MULT * 0.25) # transaction cost ratio
+```
+
+**Step 4 — Build training paths from TAIFEX historical data**
+
+Replace `monte_carlo_paths()` with rolling windows from `data/raw/^twse_d.csv`:
+```python
+spot = pd.read_csv('data/raw/^twse_d.csv')[['Date','Close']]
+spot['Date'] = pd.to_datetime(spot['Date'])
+spot = spot[spot['Date'] < '2025-01-01'].set_index('Date').sort_index()
+# Build rolling 19-day windows (matching backtest length)
+WINDOW = 19
+paths = np.array([
+    spot['Close'].values[i:i+WINDOW]
+    for i in range(len(spot) - WINDOW)
+])  # shape: (7452, 19)
+# To match notebook format: reshape to (T, n_paths, features)
+paths_train = paths.T[:, :, np.newaxis]  # shape: (19, 7452, 1)
+```
+Note: IV for each path can be simulated via BS bisection using the path's rolling HV as σ, or held constant at 26% (inception IV) for a simplified version.
+
+**Step 5 — CVaR loss function (TF2)**
+
+Replace `tf.nn.top_k` with a differentiable CVaR in Keras:
+```python
+def cvar_loss(alpha=0.50):
+    def loss(y_true, pnl):
+        # pnl shape: (batch,); CVaR = mean of worst (1-alpha) fraction
+        sorted_pnl = tf.sort(pnl)
+        n_tail = tf.cast(tf.cast(tf.shape(pnl)[0], tf.float32) * (1 - alpha), tf.int32)
+        return -tf.reduce_mean(sorted_pnl[:n_tail])
+    return loss
+```
+
+**Step 6 — Evaluation on backtest window**
+
+After training, run inference on the actual 2025-03-19 → 2025-04-16 path:
+```python
+# Real path (19 days, 1 path)
+real_path = master['F'].values  # TX April-2025 settlement prices
+# Reshape to (19, 1, 5) with proper state features
+# Call model.predict(real_path_state)
+# Compare daily deltas to Model 1 (BS) deltas
+```
+Report: RMSE of daily P&L vs. Model 1 baseline, CVaR comparison.
+
+#### Training Configuration
+
+```python
+# Match notebook settings, adapted for our data
+S_0         = 22018    # TX Apr-2025 settlement on 2025-03-19
+K           = 20000    # strike
+alpha       = 0.50     # CVaR risk aversion (start with 0.50; try 0.75, 0.99)
+batch_size  = 256      # rolling windows per batch
+epochs      = 200      # increase from notebook's 100 for convergence
+lstm_nodes  = [62, 46, 46, 1]   # same as notebook
+time_steps  = 19       # backtest window length
+n_features  = 5        # expanded state
+```
+
+#### Limitations (same as notebook conclusion)
+
+- RL is data-intensive; 7,452 training windows is marginal — augment with GBM simulation if needed
+- The April 7 crash (z = −2.7σ) is a jump event; RL trained on diffusion paths may not generalise to it
+- Unlike Models 1–2, the RL strategy is not explainable step-by-step — treat as a black-box benchmark
 
 ### Model 2: Sticky-Strike vs Sticky-Delta IV Regime — ✅ Complete
 
