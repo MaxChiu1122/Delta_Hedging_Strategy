@@ -102,7 +102,15 @@ Resulting smile coverage: 86 strikes on Mar 19 (delta range −0.995 to −0.026
 
 ---
 
-## Implemented Models
+## Models
+
+| # | Model | Status |
+|---|-------|--------|
+| 1 | Black-76 Delta Hedge (baseline) | ✅ Complete |
+| 2 | Sticky-Strike vs Sticky-Delta IV Regime | ✅ Complete |
+| 3 | Minimum Variance Delta | 🔲 Planned |
+| 4 | Heston Stochastic Volatility | 🔲 Planned |
+| 5 | Deep Hedging (Buehler et al. 2019) | 🔲 Planned |
 
 ### Model 1: Black-76 Delta Hedge (Baseline) — ✅ Complete
 
@@ -137,6 +145,33 @@ Resulting smile coverage: 86 strikes on Mar 19 (delta range −0.995 to −0.026
 1. Realized vol far exceeded IV on Apr 7–9 (moves 2.1–2.7× breakeven) → gamma dominated theta
 2. IV spike from 26% to 62% → vega loss
 3. April 7 return z-score = −2.7σ under log-normal BS → fat-tail jump event, not a diffusion
+
+### Model 3: Minimum Variance Delta — 🔲 Planned
+
+```
+Δ_MV = Δ_BS + Vega_BS × β_σS
+```
+where `β_σS = Cov(Δσ, ΔS/S) / Var(ΔS/S)` estimated from rolling 60-day regression of daily IV changes on daily index returns (using data prior to t₀ for initialization, updating daily during backtest).
+
+- `^twse_d.csv` close returns + daily IV back-solved from TXO provide the regression inputs
+- Initialize from Jan–Mar 2025 (60 trading days before 03/19); update rolling each day
+- No lookahead: β_σS at date t uses only data through t−1
+
+### Model 4: Heston Stochastic Volatility — 🔲 Planned
+
+- State variables: κ (mean reversion), θ (long-run vol), σ_v (vol of vol), ρ (spot-vol correlation), v₀ (initial variance)
+- Calibrate daily using April expiry option chain (all available strikes, 86–177 per day) via COS or Fourier pricing
+- Compute Heston delta via finite difference on calibrated model
+- Captures smile dynamics that pure BS delta misses
+
+### Model 5: Deep Hedging (ML — Buehler et al. 2019) — 🔲 Planned
+
+- Architecture: LSTM or feedforward with recurrence in position variable
+- Objective: minimize `CVaR_{α}(terminal hedging P&L)` with risk aversion parameter λ
+- Input features per day: `[S_t/K, σ_IV_t, t/T, Δ_{t-1}, cost_per_unit]`
+- Training data: `^twse_d.csv` full history 1995–2024 (30 years of daily returns)
+- Evaluate on 2025 out-of-sample; report RMSE of daily P&L vs. BS baseline
+- Reference: [Buehler et al. 2019](https://arxiv.org/abs/1802.03042)
 
 ### Model 2: Sticky-Strike vs Sticky-Delta IV Regime — ✅ Complete
 
