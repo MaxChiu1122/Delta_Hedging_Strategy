@@ -18,7 +18,17 @@ Delta-neutral dynamic hedging backtest for a short TAIFEX index option position,
 
 ---
 
-## Model: Black-76 Delta Hedge (Model 1)
+## Models Overview
+
+| Model | Description | Net P&L |
+|-------|-------------|---------|
+| **Model 1** | Black-76 delta hedge (baseline) | **−NT$34,467** |
+| **Model 2a** | Sticky-Strike IV regime | **−NT$34,467** (= Model 1) |
+| **Model 2b** | Sticky-Delta IV regime | **−NT$39,278** |
+
+---
+
+## Model 1: Black-76 Delta Hedge (Baseline)
 
 Uses **Black's 1976 formula** with the TX April-2025 futures price as the forward. Since TXO and TX share the same expiry date, the futures price *is* the cost-of-carry-adjusted forward — no dividend or rate adjustment needed.
 
@@ -110,29 +120,100 @@ The April 7 move (Trump tariff announcement) produced a z-score of **−2.7σ**,
 
 ---
 
+## Model 2: Sticky-Strike vs Sticky-Delta IV Regime
+
+When the index moves, the option's vol can be read off the market in two ways:
+
+| Regime | Assumption | IV used for delta |
+|--------|-----------|-------------------|
+| **2a Sticky-Strike** | Vol is anchored to the fixed K=20,000 strike | $\sigma_t = \text{IV}_{\text{mkt}}(K=20000,\,t)$ — same as Model 1 |
+| **2b Sticky-Delta** | Vol is anchored to a fixed delta bucket; when spot moves, the vol for the same-delta strike stays constant | $\sigma_t = $ smile$(\delta_{t-1})$, interpolated from all available PUT strikes |
+
+The full 86–177 strike TXO option chain is used each day to build a vol smile. Sticky-delta falls back to sticky-strike when near-expiry (T < 0.008 yr), deeply ITM (|δ| > 0.75), or when the interpolated IV exceeds 2× the K=20,000 IV.
+
+### Results
+
+| Component | 2a Sticky-Strike | 2b Sticky-Delta | Difference |
+|-----------|-----------------|----------------|------------|
+| Option P&L (premium + MTM) | −15,800 | −15,800 | 0 |
+| Futures hedge P&L | −18,506 | −23,309 | −4,803 |
+| Transaction costs | −161 | −169 | −8 |
+| **Net P&L** | **−34,467** | **−39,278** | **−4,811** |
+
+### P&L Attribution
+
+| Driver | 2a SS | 2b SD | Note |
+|--------|-------|-------|------|
+| Theta | +10,478 | +10,478 | Identical — same option |
+| Gamma | −41,219 | −41,219 | Identical — same option |
+| Vega | −10,990 | −10,990 | Identical — same option |
+| **Delta (futures hedge)** | **−18,506** | **−23,309** | **Only difference** |
+| Residual | +25,930 | +25,930 | Identical |
+| **Net** | **−34,467** | **−39,278** | Attribution check ✓ |
+
+The option-side Greeks are identical for both models because the same contract (TXO20000P5) is held throughout — only the futures hedge quantity differs.
+
+### Why Did the Two Models Produce Different P&Ls?
+
+**The mechanism:** Taiwan options have **negative skew** — lower strikes carry higher IV (put demand). When the 20,000 PUT is OTM, the same-delta bucket corresponds to a slightly lower strike with *higher* IV. Sticky-delta therefore uses a higher vol → slightly larger short futures position.
+
+- **Pre-crash (Mar 19–28):** IV_SD exceeded IV_SS by 5–13 pp on most days → sticky-delta built a marginally larger short position.
+- **During crash (Apr 7–9):** Fallback to sticky-strike triggered (deep ITM, |δ|>0.75). Both models hedge identically.
+- **Recovery (Apr 10):** Market bounced +1,718 pts. Sticky-delta's larger prior short position lost significantly more on this whipsaw.
+
+Net result: the extra hedge built pre-crash added ~NT$3,000 gain during the March drop, but cost ~NT$8,000 more on the April recovery — a net disadvantage of NT$4,811.
+
+![IV Spread and Futures P&L Advantage](notebooks/fig_m2_iv_spread.png)
+
+![P&L Attribution Comparison](notebooks/fig_m2_attribution.png)
+
+### Which Regime Fits Taiwan? — Regime Identification Test
+
+**Test:** Under sticky-strike, IV at a fixed strike should be stable. Under sticky-delta, IV at a fixed delta bucket should be stable. We measure the **coefficient of variation (CV = std/mean)** for each:
+
+| Series | Std (pp) | CV | Verdict |
+|--------|----------|----|---------|
+| IV(K=20,000) — sticky-strike | 10.7 pp | **32%** | ✅ Much more stable |
+| IV(10Δ bucket) — sticky-delta | 53.5 pp | 102% | ❌ Highly unstable |
+| IV(25Δ bucket) — sticky-delta | 52.3 pp | 91% | ❌ Highly unstable |
+
+The fixed-strike IV is **3× more stable** than any fixed-delta bucket. This is strong empirical evidence that Taiwan equity index options follow **sticky-strike dynamics** — particularly after the crash, where the vol surface anchored to strike levels rather than delta buckets.
+
+![Regime Stability Test](notebooks/fig_m2_regime.png)
+
+**Conclusion:** Model 2a (sticky-strike) is the more appropriate regime for Taiwan. Sticky-delta introduced unnecessary hedge volatility by tracking OTM put vols that fluctuated wildly during and after the crash. The additional NT$4,811 loss in Model 2b is a direct cost of using the wrong regime assumption.
+
+---
+
 ## Repository Structure
 
 ```
 Delta_Hedging_Strategy/
-├── CLAUDE.md                        # Full project specification & data notes
+├── CLAUDE.md                          # Full project specification & data notes
 ├── README.md
 ├── models/
-│   └── black_scholes.py             # Black-76 pricing, IV bisection, Greeks
+│   └── black_scholes.py               # Black-76 pricing, IV bisection, Greeks
 ├── backtest/
-│   ├── engine.py                    # Main backtest loop (no lookahead)
-│   ├── costs.py                     # Transaction cost model
-│   └── pnl.py                       # P&L attribution framework
+│   ├── engine.py                      # Main backtest loop (no lookahead)
+│   ├── costs.py                       # Transaction cost model
+│   └── pnl.py                         # P&L attribution framework
 ├── notebooks/
-│   ├── model1_backtest.ipynb        # Full analysis notebook (12 sections)
-│   ├── fig_cumulative_pnl.png
-│   ├── fig_iv_delta.png
-│   ├── fig_attribution.png
-│   ├── fig_expected_vs_actual.png
-│   ├── fig_rv_vs_iv.png
-│   └── fig_jump_risk.png
+│   ├── model1_backtest.ipynb          # Model 1 analysis (12 sections)
+│   │   ├── fig_cumulative_pnl.png
+│   │   ├── fig_iv_delta.png
+│   │   ├── fig_attribution.png
+│   │   ├── fig_expected_vs_actual.png # Theta+gamma vs BS zero benchmark
+│   │   ├── fig_rv_vs_iv.png           # Realized vol vs implied vol
+│   │   └── fig_jump_risk.png          # Z-score analysis of Apr 7–9 crash
+│   └── model2_sticky_regimes.ipynb   # Model 2 analysis (8 sections)
+│       ├── fig_vol_smile.png          # Vol smile on 3 key dates
+│       ├── fig_m2_comparison.png      # Cum P&L, IV used, hedge positions
+│       ├── fig_m2_attribution.png     # Side-by-side attribution bar chart
+│       ├── fig_m2_iv_spread.png       # IV_SD−IV_SS spread and futures advantage
+│       └── fig_m2_regime.png          # Regime stability test (SS vs SD)
 └── data/
-    ├── raw/                         # Immutable source data
-    └── processed/                   # model1_results.csv
+    ├── raw/                           # Immutable source data
+    └── processed/                     # model1_results.csv, model2a/2b results
 ```
 
 ---
@@ -143,11 +224,12 @@ Delta_Hedging_Strategy/
 # Install dependencies
 pip install pandas numpy scipy matplotlib jupyter
 
-# Run backtest engine (prints per-day table + summary)
+# Run Model 1 backtest engine (prints per-day table + summary)
 python -m backtest.engine
 
-# Launch notebook
-jupyter notebook notebooks/model1_backtest.ipynb
+# Launch notebooks
+jupyter notebook notebooks/model1_backtest.ipynb   # Model 1: BS delta hedge
+jupyter notebook notebooks/model2_sticky_regimes.ipynb  # Model 2: regime comparison
 ```
 
 ---
