@@ -34,8 +34,8 @@ OPT_MULT = 50
 FUT_MULT = 200
 HEDGE_RATIO = OPT_MULT / FUT_MULT   # 0.25: converts option delta to TX contracts
 
-# Final settlement — TAIEX closing 2025-04-16 (conservative approximation)
-FINAL_SETTLEMENT = 19_468.0
+# Final settlement — official TAIFEX 最終結算價 for 202504 (confirmed from TAIFEX 盤後資訊)
+FINAL_SETTLEMENT = 19_548.0
 
 
 # ── Data loading ─────────────────────────────────────────────────────────────
@@ -406,8 +406,8 @@ def run_backtest(
         print(f"    Residual (model/jump err): NT$ {residual_total:>12,.0f}")
         attr_sum = theta_total + fut_total + gamma_total + vega_total + cost_total + residual_total
         print(f"    ─── Check (should = Net) : NT$ {attr_sum:>12,.0f}")
-        print(f"\n  ⚠  Final settlement is APPROXIMATE (TAIEX close 19,468).")
-        print(f"     Actual TAIFEX SOQ may differ. Payoff uncertainty ~NT${(20000-19468)*50:,.0f}.")
+        print(f"\n  Final settlement: {final_settlement:,.0f} (official TAIFEX 最終結算價, 202504)")
+        print(f"  Confirmed by TXO20000P Close = 452 on Apr 16  →  20,000 − 452 = 19,548 ✓")
 
     return records, master
 

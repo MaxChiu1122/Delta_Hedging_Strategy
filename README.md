@@ -1,0 +1,161 @@
+# Delta_Hedging_Strategy
+
+Delta-neutral dynamic hedging backtest for a short TAIFEX index option position, covering data acquisition, Black-76 pricing, daily rebalancing, P&L attribution, and statistical analysis of hedging error.
+
+---
+
+## The Trade
+
+| Field | Detail |
+|-------|--------|
+| Position | **Short 1 × TXO20000P5** (TAIFEX monthly PUT, K = 20,000, expiry 2025-04-16) |
+| Hedge instrument | TX April-2025 futures (fractional lots allowed) |
+| Backtest window | **2025-03-19 → 2025-04-16** (19 trading days) |
+| Execution rule | TAIFEX daily settlement price only — no intraday fills |
+| Option multiplier | NT$50 per index point |
+| Futures multiplier | NT$200 per index point |
+| Hedge ratio | 50 / 200 = **0.25 TX contracts per option delta unit** |
+
+---
+
+## Model: Black-76 Delta Hedge (Model 1)
+
+Uses **Black's 1976 formula** with the TX April-2025 futures price as the forward. Since TXO and TX share the same expiry date, the futures price *is* the cost-of-carry-adjusted forward — no dividend or rate adjustment needed.
+
+$$
+d_1 = \frac{\ln(F/K) + \frac{1}{2}\sigma^2 T}{\sigma\sqrt{T}}, \quad
+\Delta_{\text{put}} = -e^{-rT}\,N(-d_1)
+$$
+
+Each day:
+1. Back-solve implied volatility (IV) from the put's settlement price via bisection
+2. Compute Black-76 delta
+3. Rebalance futures position to `h = |Δ| × 0.25` TX contracts (short)
+4. Record P&L: option MTM + futures MTM − transaction costs
+
+**Risk-free rate:** CBC 31–90 Day CP rate (linearly interpolated daily; Mar 2025 = 1.60%, Apr 2025 = 1.57%)  
+**Day count:** Calendar days / 365
+
+---
+
+## Data Sources
+
+| Dataset | File | Source |
+|---------|------|--------|
+| TXO option chain (Apr 2025) | `data/raw/TXO_20250319-20250416.csv` | TAIFEX 盤後資訊 |
+| TX futures (Apr 2025) | `data/raw/TX_20250319-20250416.csv` | TAIFEX 盤後資訊 |
+| TAIEX price index | `data/raw/^twse_d.csv` | Yahoo Finance `^TWII` |
+| CBC interest rates | `data/raw/CBC_Interest_Rates.csv` | CBC 統計資料庫 |
+| Final settlement price | `data/raw/Final_settlement_price.png` | TAIFEX 選擇權最終結算價 |
+
+**Final settlement (202504):** Official TAIFEX 最終結算價 = **19,548** (confirmed).  
+Consistent with TXO20000P last traded Close = 452 on Apr 16 (20,000 − 452 = 19,548 ✓).
+
+---
+
+## Key Results
+
+| Component | NT$ |
+|-----------|-----|
+| Premium received (day 0) | +3,400 |
+| Option MTM changes | −19,200 |
+| Futures hedge P&L | −18,506 |
+| Transaction costs | −161 |
+| **Net P&L** | **−34,467** |
+
+### P&L Attribution
+
+| Driver | NT$ | Interpretation |
+|--------|-----|----------------|
+| Theta (time decay) | +10,478 | Short put earns daily decay |
+| Delta / futures hedge | −18,506 | Whipsaw during crash + recovery |
+| Gamma (convexity cost) | −41,219 | Large moves hurt short gamma |
+| Vega (vol mark-to-mkt) | −10,990 | IV spike 26% → 62% hurt short vega |
+| Residual (model error) | +25,930 | Discrete hedging / jump residual |
+| **Net** | **−34,467** | Attribution check ✓ |
+
+---
+
+## Did Results Differ from Expectations?
+
+**Yes — significantly.** In a Black-Scholes world, a perfectly delta-hedged short put earns **zero per day**: theta collected exactly offsets the gamma cost for a move of size $\sigma_{\text{IV}} \cdot F \cdot \sqrt{dt}$.
+
+The actual net P&L was −NT$34,467. Three factors caused the divergence:
+
+### 1. Gamma dominated Theta (realized vol > implied vol)
+
+The gamma cost (−NT$41,219) dwarfed the theta earned (+NT$10,478). This occurs when realized daily moves exceed the breakeven move implied by IV. During the tariff shock (April 7–9), actual moves were **2.1–2.7× the breakeven** — every such day produces a net theta+gamma loss.
+
+![Expected vs Actual](notebooks/fig_expected_vs_actual.png)
+
+### 2. Volatility spike (vega loss)
+
+IV expanded from ~26% (March) to 62% (April 9). As a short vega position, each 1% rise in IV costs ~NT$490 (vega × 50 multiplier). Total vega P&L: −NT$10,990.
+
+![RV vs IV](notebooks/fig_rv_vs_iv.png)
+
+### 3. Jump risk (the root cause)
+
+Expressing each daily return as a z-score under the log-normal BS model with the previous day's IV:
+
+$$
+z_t = \frac{\Delta F_t / F_{t-1}}{\sigma_{\text{IV},t-1} \cdot \sqrt{dt}}
+$$
+
+The April 7 move (Trump tariff announcement) produced a z-score of **−2.7σ**, with April 8–9 at −2.5σ and −2.1σ respectively. Under a normal distribution, a sequence of three consecutive moves beyond 2σ has probability < 0.01%. This is a fat-tail / jump event that delta-neutral hedging with daily rebalancing **structurally cannot hedge**.
+
+![Jump Risk](notebooks/fig_jump_risk.png)
+
+**Conclusion:** The loss was not caused by a flaw in the hedging model — it was caused by a tail event (geopolitical shock) that lies outside the diffusion-process assumption of Black-Scholes. No daily-rebalancing delta hedge can protect against overnight jumps of this magnitude without explicit jump-risk premium or real-time monitoring.
+
+---
+
+## Repository Structure
+
+```
+Delta_Hedging_Strategy/
+├── CLAUDE.md                        # Full project specification & data notes
+├── README.md
+├── models/
+│   └── black_scholes.py             # Black-76 pricing, IV bisection, Greeks
+├── backtest/
+│   ├── engine.py                    # Main backtest loop (no lookahead)
+│   ├── costs.py                     # Transaction cost model
+│   └── pnl.py                       # P&L attribution framework
+├── notebooks/
+│   ├── model1_backtest.ipynb        # Full analysis notebook (12 sections)
+│   ├── fig_cumulative_pnl.png
+│   ├── fig_iv_delta.png
+│   ├── fig_attribution.png
+│   ├── fig_expected_vs_actual.png
+│   ├── fig_rv_vs_iv.png
+│   └── fig_jump_risk.png
+└── data/
+    ├── raw/                         # Immutable source data
+    └── processed/                   # model1_results.csv
+```
+
+---
+
+## How to Run
+
+```bash
+# Install dependencies
+pip install pandas numpy scipy matplotlib jupyter
+
+# Run backtest engine (prints per-day table + summary)
+python -m backtest.engine
+
+# Launch notebook
+jupyter notebook notebooks/model1_backtest.ipynb
+```
+
+---
+
+## Transaction Cost Assumptions
+
+| Item | Assumption |
+|------|-----------|
+| TX exchange + broker | NT$100 per contract (proportional for fractional lots) |
+| TXO exchange + broker | NT$100 one-time at inception |
+| Slippage | 0 (trading at exact settlement price) |

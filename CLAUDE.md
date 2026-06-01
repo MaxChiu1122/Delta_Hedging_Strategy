@@ -31,7 +31,7 @@ Futures contracts needed = d × (50 / 200) = d × 0.25 TX contracts (sell to hed
 | TX futures (April 2025 contract) | `data/raw/TX_20250319-20250416.csv` | ✅ Ready | All 19 dates; settlement prices in `settlement_price` column (col 11); expiry day shows 0 — see note below |
 | CBC interest rates | `data/raw/CBC_Interest_Rates.csv` | ✅ Ready | Monthly through 2025.12; use 31–90 Day CP rate: Mar 2025 = 1.60%, Apr 2025 = 1.57% |
 | TAIEX price index | `data/raw/^twse_d.csv` | ✅ Ready | Yahoo Finance `^TWII` daily OHLCV; 1995-01-05 → 2025-04-16 (7,536 rows); confirmed price index (close 03/19 ≈ 21,961 matches TX settlement 22,018 ✓); use `Close` column as S; date format: `YYYY-MM-DD` |
-| **Final settlement price (Apr 16)** | — | ⚠️ Approximate | Monthly 202504 shows `settlement_price = 0` (TAIFEX expiry-day convention). Best approximation: TAIEX closing = **19,468.00** on April 16; opening = 19,737.09. PUT TXO20000P is **in the money** either way (both < 20,000). See note below. |
+| **Final settlement price (Apr 16)** | `data/raw/Final_settlement_price.png` | ✅ Confirmed | Official TAIFEX 最終結算價 for 202504 = **19,548**. Verified from TAIFEX 盤後資訊 → 選擇權最終結算價. PUT payoff = (20,000 − 19,548) × 50 = **NT$22,600**. |
 
 ### Critical Data Notes
 
@@ -59,7 +59,7 @@ In `TX_20250319-20250416.csv`, the header is:
 
 → Settlement price = **column 11 (`$11` in awk)**. Column 10 is Volume. Confirm by checking: 2025/03/19 April TX settlement = 22,018.
 
-**3. Final settlement price — approximation available**
+**3. Final settlement price — confirmed**
 
 On 2025/04/16, all monthly 202504 TXO rows show `settlement_price = 0`. This is TAIFEX's expiry-day file format convention — the official 最終結算價 is published in a separate report.
 
@@ -69,17 +69,15 @@ The non-zero settlement prices visible on April 16 belong to **weekly contracts*
 
 These are valid daily mark-to-market settlements for still-alive options, not final settlement payoffs.
 
-**Best available approximation for final settlement:**
+**Confirmed final settlement (source: `data/raw/Final_settlement_price.png`):**
 | Source | Value | PUT Payoff (K=20,000) |
 |--------|-------|----------------------|
-| TAIEX closing price, April 16 | 19,468.00 | (20,000 − 19,468) × 50 = **NT$26,600** |
-| TAIEX opening price, April 16 | 19,737.09 | (20,000 − 19,737) × 50 = **NT$13,150** |
-| TX May futures settlement, April 16 | 19,349 | proxy only (different expiry) |
+| **TAIFEX 最終結算價 (official SOQ), Apr 16** | **19,548** | **(20,000 − 19,548) × 50 = NT$22,600** ✅ |
+| TXO20000P last traded price, Apr 16 | 452 pts | confirms: 20,000 − 452 = 19,548 ✓ |
+| TAIEX closing price, April 16 | 19,468 | (20,000 − 19,468) × 50 = NT$26,600 (not used) |
+| TAIEX opening price, April 16 | 19,737 | (20,000 − 19,737) × 50 = NT$13,150 (not used) |
 
-The official final settlement uses the **special opening quotation (SOQ)** — arithmetic average of constituent stocks' first transaction prices on expiry morning. This is close to but not equal to the TAIEX open. For a precise figure, download from:
-- TAIFEX → 盤後資訊 → 選擇權最終結算價 (April 2025)
-
-Until confirmed, use TAIEX closing price (19,468) as the conservative (higher payoff) approximation. Note this uncertainty explicitly in the backtest P&L.
+The official settlement (SOQ = 19,548) is confirmed and consistent with the option's last traded price of 452 pts on April 16. Use `FINAL_SETTLEMENT = 19_548.0` throughout the codebase.
 
 **4. Missing trading days (2025/04/03–04/06)**
 
