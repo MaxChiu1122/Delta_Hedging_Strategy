@@ -13,6 +13,9 @@ __pycache__/
 .vscode/
 .idea/
 
+# Reference notebook (kept locally, excluded from repo)
+DerivativesHedging.ipynb
+
 # Presentation build artifacts
 preview_pages/
 *.aux
