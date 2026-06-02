@@ -357,8 +357,7 @@
     \column{0.46\textwidth}
       \begin{alertblock}{Choosing $\alpha$ --- the key design call}
         \small
-        $\alpha{=}0.50$ (original notebook's training value) averages the worst \emph{half} $\Rightarrow$ degenerates to "do not hedge."\\[0.3em]
-        I use \textbf{$\alpha{=}0.95$ (95\% Expected Shortfall)} --- a principled, conventional tail measure, applied to both training and evaluation.
+        I use \textbf{$\alpha{=}0.95$ (95\% Expected Shortfall)} --- a principled, conventional tail-risk measure --- applied consistently to both training and evaluation, so the objective minimises the expected loss across the \textbf{worst 5\%} of paths.
       \end{alertblock}
   \end{columns}
 \end{frame}
@@ -423,7 +422,7 @@
     MV Delta --- one stable regression coefficient --- gave the most \emph{reliable} classical improvement.
   \end{exampleblock}
   \begin{block}{3. The objective \emph{is} the strategy}
-    Deep Hedging only works once the risk measure is right: $\alpha{=}0.50 \to$ "never hedge"; $\alpha{=}0.95 \to$ an efficient, whipsaw-aware hedge that won for the \textbf{right} reason (turnover control).
+    With a tail-aware risk measure ($\alpha{=}0.95$, 95\% Expected Shortfall), Deep Hedging learns an efficient, whipsaw-aware hedge that beat the baseline for the \textbf{right} reason --- turnover control, not abstaining from hedging.
   \end{block}
 \end{frame}
 
