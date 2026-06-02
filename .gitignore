@@ -12,3 +12,14 @@ __pycache__/
 # Editor
 .vscode/
 .idea/
+
+# Presentation build artifacts
+preview_pages/
+*.aux
+*.log
+*.nav
+*.snm
+*.toc
+*.out
+*.vrb
+*.synctex.gz

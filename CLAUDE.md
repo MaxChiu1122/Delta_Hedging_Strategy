@@ -108,9 +108,9 @@ Resulting smile coverage: 86 strikes on Mar 19 (delta range −0.995 to −0.026
 |---|-------|--------|
 | 1 | Black-76 Delta Hedge (baseline) | ✅ Complete |
 | 2 | Sticky-Strike vs Sticky-Delta IV Regime | ✅ Complete |
-| 3 | Minimum Variance Delta | 🔲 Planned |
-| 4 | Heston Stochastic Volatility | 🔲 Planned |
-| 5 | Deep Hedging (Buehler et al. 2019) | 🔲 Planned |
+| 3 | Minimum Variance Delta | ✅ Complete |
+| 4 | Heston Stochastic Volatility | ✅ Complete |
+| 5 | Deep Hedging (Buehler et al. 2019) | ✅ Complete |
 
 ### Model 1: Black-76 Delta Hedge (Baseline) — ✅ Complete
 
@@ -146,7 +146,15 @@ Resulting smile coverage: 86 strikes on Mar 19 (delta range −0.995 to −0.026
 2. IV spike from 26% to 62% → vega loss
 3. April 7 return z-score = −2.7σ under log-normal BS → fat-tail jump event, not a diffusion
 
-### Model 3: Minimum Variance Delta — 🔲 Planned
+### Model 2: Sticky-Strike vs Sticky-Delta IV Regime — ✅ Complete
+
+`notebooks/model2_sticky_regimes.ipynb` — 8 sections
+
+- **2a Sticky-Strike:** IV from K=20,000 settlement each day (= Model 1)
+- **2b Sticky-Delta:** IV interpolated from full vol smile at previous day's delta; fallback to SS when T < 0.008 yr, |δ| > 0.75, or IV_SD > 2 × IV_SS
+- For P&L attribution, always use SS-based Greeks (option side identical for both; only futures hedge differs)
+
+### Model 3: Minimum Variance Delta — ✅ Complete
 
 ```
 Δ_MV = Δ_BS + Vega_BS × β_σS
@@ -157,14 +165,14 @@ where `β_σS = Cov(Δσ, ΔS/S) / Var(ΔS/S)` estimated from rolling 60-day reg
 - Initialize from Jan–Mar 2025 (60 trading days before 03/19); update rolling each day
 - No lookahead: β_σS at date t uses only data through t−1
 
-### Model 4: Heston Stochastic Volatility — 🔲 Planned
+### Model 4: Heston Stochastic Volatility — ✅ Complete
 
 - State variables: κ (mean reversion), θ (long-run vol), σ_v (vol of vol), ρ (spot-vol correlation), v₀ (initial variance)
 - Calibrate daily using April expiry option chain (all available strikes, 86–177 per day) via COS or Fourier pricing
 - Compute Heston delta via finite difference on calibrated model
 - Captures smile dynamics that pure BS delta misses
 
-### Model 5: Deep Hedging (Buehler et al. 2019) — 🔲 Planned
+### Model 5: Deep Hedging (Buehler et al. 2019) — ✅ Complete
 
 **Reference paper:** [Buehler et al. 2019, arXiv:1802.03042](https://arxiv.org/abs/1802.03042)  
 **Starting point:** `DerivativesHedging.ipynb` (in project root) — a working TF1 implementation for call options on synthetic GBM paths.
@@ -250,7 +258,7 @@ Note: IV for each path can be simulated via BS bisection using the path's rollin
 
 Replace `tf.nn.top_k` with a differentiable CVaR in Keras:
 ```python
-def cvar_loss(alpha=0.50):
+def cvar_loss(alpha=0.95):
     def loss(y_true, pnl):
         # pnl shape: (batch,); CVaR = mean of worst (1-alpha) fraction
         sorted_pnl = tf.sort(pnl)
@@ -277,7 +285,7 @@ Report: RMSE of daily P&L vs. Model 1 baseline, CVaR comparison.
 # Match notebook settings, adapted for our data
 S_0         = 22018    # TX Apr-2025 settlement on 2025-03-19
 K           = 20000    # strike
-alpha       = 0.50     # CVaR risk aversion (start with 0.50; try 0.75, 0.99)
+alpha       = 0.95     # CVaR risk aversion = 95% Expected Shortfall (α=0.50 degenerates to no-hedge; α=0.99 weights rare crashes more)
 batch_size  = 256      # rolling windows per batch
 epochs      = 200      # increase from notebook's 100 for convergence
 lstm_nodes  = [62, 46, 46, 1]   # same as notebook
@@ -285,31 +293,26 @@ time_steps  = 19       # backtest window length
 n_features  = 5        # expanded state
 ```
 
-#### Limitations (same as notebook conclusion)
+#### Limitations
 
-- RL is data-intensive; 7,452 training windows is marginal — augment with GBM simulation if needed
-- The April 7 crash (z = −2.7σ) is a jump event; RL trained on diffusion paths may not generalise to it
-- Unlike Models 1–2, the RL strategy is not explainable step-by-step — treat as a black-box benchmark
+- RL is data-intensive; 7,478 training windows is marginal — augment with GBM simulation if needed
+- The April 7 crash (z = −2.7σ) is a jump event; RL trained on largely diffusion-like paths under-hedges it (held 50–76% of BS delta on Apr 7–9)
+- Unlike Models 1–4, the RL strategy is not explainable step-by-step — treat as a black-box benchmark
+- CVaR α matters: α=0.50 degenerates to a no-hedge policy; **α=0.95 (95% ES) used here induces a genuine hedge**; α=0.99 would weight rare crashes more but leaves too few tail samples per batch unless batch size is raised
 
-### Model 2: Sticky-Strike vs Sticky-Delta IV Regime — ✅ Complete
+**Results (implemented in `notebooks/model5_deep_hedging.ipynb`):**
 
-`notebooks/model2_sticky_regimes.ipynb` — 8 sections
+| Component | M1 Black-76 | M3 MV Delta | M4 Heston | **M5 Deep Hedging** |
+|-----------|-------------|-------------|-----------|---------------------|
+| Premium   | +3,400 | +3,400 | +3,400 | +3,400 |
+| Option MTM | −19,200 | −19,200 | −19,200 | −19,200 |
+| Futures P&L | −18,506 | −16,369 | −22,456 | **−6,144** |
+| Costs | −161 | −162 | −162 | −142 |
+| **Net P&L** | **−34,467** | **−32,331** | **−38,418** | **−22,086** |
 
-- **2a Sticky-Strike:** IV from K=20,000 settlement each day (= Model 1)
-- **2b Sticky-Delta:** IV interpolated from full vol smile at previous day's delta; fallback to SS when T < 0.008 yr, |δ| > 0.75, or IV_SD > 2 × IV_SS
-- For P&L attribution, always use SS-based Greeks (option side identical for both; only futures hedge differs)
+**Key finding:** Trained and evaluated at CVaR₀.₉₅ (95% Expected Shortfall), the LSTM learns a **genuine hedge** — not the degenerate "do-not-hedge" policy that α=0.50 produces. Mean |h| ≈ 0.091 contracts (vs BS 0.097), but the policy is smoother and lower-turnover: it front-loads the hedge in the calm period, ramps gradually, and **under-hedges the crash bottom** (holds 50/62/76% of BS delta on Apr 7–9). Turnover is 31% below BS (0.30 vs 0.43), which avoided most of BS's whipsaw loss during the crash→rally→crash sequence. Net result beats BS by +NT$12,381 for the right reason (efficient hedging), not by abstaining. Caveat: the under-hedge at the bottom reflects April 7 being out-of-distribution (<0.5% of training windows), so it helped here partly by luck.
 
-**Results:**
-
-| | 2a Sticky-Strike | 2b Sticky-Delta |
-|--|--|--|
-| Net P&L | −34,467 | −39,278 |
-| Futures P&L | −18,506 | −23,309 |
-| Option P&L | −15,800 | −15,800 (identical) |
-
-**Key finding:** Sticky-delta was NT$4,811 worse. Mechanism: negative vol skew (lower strikes carry higher IV) causes IV_SD > IV_SS by 5–13 pp pre-crash → larger short futures position → more loss on April 10 recovery (+1,718 pts whipsaw).
-
-**Regime test:** Fixed-strike IV has CV = 32% vs fixed-delta buckets CV = 91–102%. Taiwan equity options follow **sticky-strike** dynamics. Model 2a is the appropriate regime.
+**Implementation note:** Uses PyTorch 2.x (not TF2/Keras as originally planned — TF2 not available; PyTorch installed via conda base). Architecture: Input(5) → LSTM-62 → LSTM-46 → Dense(1) → tanh × 0.25. Trained at α=0.95, batch 256, 100 epochs on 7,478 rolling 18-period windows from TAIEX 1995-01-05 → 2025-03-18. Weights cached at `data/processed/model5_weights.pt`.
 
 ---
 
