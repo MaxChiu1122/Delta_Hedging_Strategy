@@ -250,7 +250,7 @@ def run_backtest(
     premium_received = premium_pts * OPT_MULT   # NT$ received upfront
     h = required_hedge(greeks0)   # initial futures position (negative = short)
 
-    inception_cost = txo_inception_cost(1.0) + tx_transaction_cost(h)
+    inception_cost = txo_inception_cost(premium_pts) + tx_transaction_cost(h, float(row0["F"]))
     # Day 0: record premium received as positive option P&L
     rec0 = DailyPnL(
         date=str(day0.date()),
@@ -294,7 +294,7 @@ def run_backtest(
 
         if is_expiry:
             # Final day: close position
-            unwind_cost = tx_transaction_cost(h)  # close futures position
+            unwind_cost = tx_transaction_cost(h, final_settlement)  # close futures position
             rec = compute_expiry_pnl(
                 date=str(date_curr.date()),
                 F_prev=F_prev,
@@ -326,7 +326,7 @@ def run_backtest(
             h_new = required_hedge(greeks_curr)
 
         delta_h = h_new - h
-        cost_t = tx_transaction_cost(delta_h)
+        cost_t = tx_transaction_cost(delta_h, F_curr)
 
         delta_F = F_curr - F_prev
         delta_sigma = ((iv_curr or 0.0) - (prev_iv or 0.0))

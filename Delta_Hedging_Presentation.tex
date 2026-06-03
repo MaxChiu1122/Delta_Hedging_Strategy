@@ -15,7 +15,7 @@
 \usetheme{Madrid}
 \usecolortheme{default}
 
-\definecolor{primary}{RGB}{0,76,153}      % KGI-style deep blue
+\definecolor{primary}{RGB}{0,76,153}      % deep blue
 \definecolor{accent}{RGB}{200,40,40}       % loss / alert red
 \definecolor{good}{RGB}{0,140,70}          % gain green
 \definecolor{lightblue}{RGB}{225,235,248}
@@ -79,9 +79,9 @@
     \item \textbf{Approach:} five hedging models of increasing sophistication, each under strict no-lookahead discipline, with full P\&L attribution.
   \end{itemize}
   \vspace{0.4em}
-  \begin{block}{Headline result --- net P\&L vs.\ the Black-76 baseline (\loss{$-$\nt{34{,}467}})}
+  \begin{block}{Headline result --- net P\&L vs.\ the Black-76 baseline (\loss{$-$\nt{34{,}380}})}
     \centering
-    Deep Hedging \gain{(+\nt{12{,}381})} \,$>$\, MV Delta \gain{(+\nt{2{,}136})} \,$>$\, Baseline \,$>$\, Heston \loss{($-$\nt{3{,}951})}\\[0.2em]
+    Deep Hedging \gain{(+\nt{2{,}946})} \,$>$\, MV Delta \gain{(+\nt{2{,}136})} \,$>$\, Baseline \,$>$\, Heston \loss{($-$\nt{3{,}950})}\\[0.2em]
     {\small Sophistication did \emph{not} guarantee performance --- \textbf{objective design and turnover control did}.}
   \end{block}
 \end{frame}
@@ -131,11 +131,11 @@
       \end{tabular}
       \vspace{0.8em}
 
-      \textbf{Transaction costs}
+      \textbf{Transaction costs} (TAIFEX schedule)
       \begin{itemize}\small
-        \item TX: \nt{100} per contract $\times\,|\Delta h|$ each rebalance
-        \item TXO: \nt{100} once at inception
-        \item Slippage: 0 (settlement-price execution)
+        \item TX: exch.\ fee \nt{20} $+$ tax $0.00002{\times}200F$ ($\approx$\nt{108}) per contract $\times|\Delta h|$
+        \item TXO: exch.\ fee \nt{10} $+$ tax $0.001{\times}$prem ($\approx$\nt{13}) at inception
+        \item Broker commission excluded; slippage 0
       \end{itemize}
     \column{0.5\textwidth}
       \textbf{Modelling conventions}
@@ -183,7 +183,7 @@
     \item Final settlement $=$ officially published TAIFEX SOQ $=19{,}548$.
   \end{enumerate}
   \vspace{0.4em}
-  \begin{exampleblock}{Why this matters for an interview}
+  \begin{exampleblock}{Why this matters}
     The whole exercise is only credible if the hedge at time $t$ cannot "see" the crash before it happens. Each model --- including the deep-learning one --- is trained/calibrated strictly on information available \emph{before} the decision.
   \end{exampleblock}
 \end{frame}
@@ -246,14 +246,14 @@
         Premium received & \gain{$+3{,}400$} \\
         Option MTM & \loss{$-19{,}200$} \\
         Futures hedge P\&L & \loss{$-18{,}506$} \\
-        Transaction costs & \loss{$-161$} \\
+        Transaction costs & \loss{$-74$} \\
         \midrule
-        \textbf{Net P\&L} & \loss{$\mathbf{-34{,}467}$} \\
+        \textbf{Net P\&L} & \loss{$\mathbf{-34{,}380}$} \\
         \bottomrule
       \end{tabular}
       \vspace{0.5em}
       \begin{block}{The puzzle}
-        \small A "correctly" delta-hedged short put still lost \nt{34{,}467}. \textbf{Why?}
+        \small A "correctly" delta-hedged short put still lost \nt{34{,}380}. \textbf{Why?}
       \end{block}
     \column{0.54\textwidth}
       \centering
@@ -274,7 +274,7 @@
         Delta (futures) & \loss{$-18{,}506$} \\
         Residual (jump) & \gain{$+25{,}930$} \\
         \midrule
-        \textbf{Net} & \loss{$\mathbf{-34{,}467}$} \\
+        \textbf{Net} & \loss{$\mathbf{-34{,}380}$} \\
         \bottomrule
       \end{tabular}
     \column{0.58\textwidth}
@@ -298,7 +298,7 @@
         \item Fallbacks near expiry / deep-ITM / unstable smile.
       \end{itemize}
       \begin{block}{Result}
-        \small Sticky-Delta net \loss{$-$\nt{39{,}278}} --- \emph{worse}. Its larger prior short lost more on the Apr 10 rally (whipsaw).
+        \small Sticky-Delta net \loss{$-$\nt{39{,}191}} --- \emph{worse}. Its larger prior short lost more on the Apr 10 rally (whipsaw).
       \end{block}
     \column{0.5\textwidth}
       \centering
@@ -317,7 +317,7 @@
         \item $\beta$ from rolling 60-day regression, initialised pre-$t_0$, updated daily (no lookahead).
       \end{itemize}
       \begin{exampleblock}{Result --- best classical model}
-        \small Net \loss{$-$\nt{32{,}331}} \;(\gain{$+$\nt{2{,}136}} vs.\ baseline). A small, \textbf{robust} improvement from a stable parameter.
+        \small Net \loss{$-$\nt{32{,}244}} \;(\gain{$+$\nt{2{,}136}} vs.\ baseline). A small, \textbf{robust} improvement from a stable parameter.
       \end{exampleblock}
     \column{0.5\textwidth}
       \centering
@@ -335,7 +335,7 @@
         \item Aims to capture smile dynamics BS delta misses.
       \end{itemize}
       \begin{alertblock}{Result --- sophistication backfired}
-        \small Net \loss{$-$\nt{38{,}418}} \;(\loss{$-$\nt{3{,}951}} vs.\ baseline). Degenerate $v_0\!\approx\!0.015$ $\Rightarrow$ too-small delta $\Rightarrow$ under-hedged into the fall. \textbf{Estimation/calibration risk} during crisis.
+        \small Net \loss{$-$\nt{38{,}330}} \;(\loss{$-$\nt{3{,}950}} vs.\ baseline). Degenerate $v_0\!\approx\!0.015$ $\Rightarrow$ too-small delta $\Rightarrow$ under-hedged into the fall. \textbf{Estimation/calibration risk} during crisis.
       \end{alertblock}
     \column{0.54\textwidth}
       \centering
@@ -367,13 +367,13 @@
     \column{0.46\textwidth}
       \textbf{What the network learned} (at $\alpha=0.95$):
       \begin{itemize}\small
-        \item Carries a real hedge: mean $|h|\approx0.091$ vs.\ BS $0.097$.
+        \item Carries a real hedge: mean $|h|\approx0.073$ vs.\ BS $0.097$.
         \item \textbf{Front-loads} the hedge in the calm period; ramps smoothly.
-        \item \textbf{Under-hedges the crash bottom} --- holds 50/62/76\% of BS delta on Apr 7--9.
-        \item \textbf{Turnover 31\% below BS} (0.30 vs.\ 0.43) $\Rightarrow$ less whipsaw + cost.
+        \item \textbf{Under-hedges the crash bottom} --- holds 33/46/59\% of BS delta on Apr 7--9.
+        \item \textbf{Turnover 50\% below BS} (0.22 vs.\ 0.43) $\Rightarrow$ lowest cost, less whipsaw.
       \end{itemize}
       \begin{exampleblock}{Result --- best of all five}
-        \small Futures P\&L \loss{$-$\nt{6{,}144}} (vs.\ BS \loss{$-$\nt{18{,}506}}); Net \loss{$-$\nt{22{,}086}} \;\gain{(+\nt{12{,}381})}.
+        \small Futures P\&L \loss{$-$\nt{15{,}585}} (vs.\ BS \loss{$-$\nt{18{,}506}}); Net \loss{$-$\nt{31{,}434}} \;\gain{(+\nt{2{,}946})}.
       \end{exampleblock}
     \column{0.54\textwidth}
       \centering
@@ -393,11 +393,11 @@
     \textbf{Rank} & \textbf{Model} & \textbf{Net P\&L (\nt{})} & \textbf{vs.\ Baseline} \\
     \midrule
     \rowcolor{lightblue}
-    1 & Model 5 --- Deep Hedging & $-22{,}086$ & \gain{$+12{,}381$} \\
-    2 & Model 3 --- MV Delta & $-32{,}331$ & \gain{$+2{,}136$} \\
-    3 & Model 1 --- Black-76 (baseline) & $-34{,}467$ & --- \\
-    4 & Model 4 --- Heston SV & $-38{,}418$ & \loss{$-3{,}951$} \\
-    5 & Model 2b --- Sticky-Delta & $-39{,}278$ & \loss{$-4{,}811$} \\
+    1 & Model 5 --- Deep Hedging & $-31{,}434$ & \gain{$+2{,}946$} \\
+    2 & Model 3 --- MV Delta & $-32{,}244$ & \gain{$+2{,}136$} \\
+    3 & Model 1 --- Black-76 (baseline) & $-34{,}380$ & --- \\
+    4 & Model 4 --- Heston SV & $-38{,}330$ & \loss{$-3{,}950$} \\
+    5 & Model 2b --- Sticky-Delta & $-39{,}191$ & \loss{$-4{,}811$} \\
     \bottomrule
   \end{tabular}
 
@@ -409,7 +409,7 @@
       \small
       \begin{itemize}
         \item Every model lost money --- a 9\% OTM put through a jump is structurally hard to hedge.
-        \item The spread from best to worst is \textbf{\nt{17{,}192}} --- model choice clearly matters.
+        \item The spread from best to worst is \textbf{\nt{7{,}757}} --- model choice clearly matters.
       \end{itemize}
   \end{columns}
 \end{frame}

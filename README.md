@@ -22,12 +22,12 @@ Delta-neutral dynamic hedging backtest for a short TAIFEX index option position,
 
 | Model | Description | Net P&L |
 |-------|-------------|---------|
-| **Model 1** | Black-76 delta hedge (baseline) | **−NT$34,467** |
-| **Model 2a** | Sticky-Strike IV regime | **−NT$34,467** (= Model 1) |
-| **Model 2b** | Sticky-Delta IV regime | **−NT$39,278** |
-| **Model 3** | Minimum Variance (MV) Delta | **−NT$32,331** (+NT$2,136 vs Model 1) |
-| **Model 4** | Heston Stochastic Volatility | **−NT$38,418** (−NT$3,951 vs Model 1) |
-| **Model 5** | Deep Hedging (Buehler et al. 2019) | **−NT$22,086** (+NT$12,381 vs Model 1) |
+| **Model 1** | Black-76 delta hedge (baseline) | **−NT$34,380** |
+| **Model 2a** | Sticky-Strike IV regime | **−NT$34,380** (= Model 1) |
+| **Model 2b** | Sticky-Delta IV regime | **−NT$39,191** |
+| **Model 3** | Minimum Variance (MV) Delta | **−NT$32,244** (+NT$2,136 vs Model 1) |
+| **Model 4** | Heston Stochastic Volatility | **−NT$38,330** (−NT$3,950 vs Model 1) |
+| **Model 5** | Deep Hedging (Buehler et al. 2019) | **−NT$31,434** (+NT$2,946 vs Model 1) |
 
 ---
 
@@ -73,8 +73,8 @@ Consistent with TXO20000P last traded Close = 452 on Apr 16 (20,000 − 452 = 19
 | Premium received (day 0) | +3,400 |
 | Option MTM changes | −19,200 |
 | Futures hedge P&L | −18,506 |
-| Transaction costs | −161 |
-| **Net P&L** | **−34,467** |
+| Transaction costs | −74 |
+| **Net P&L** | **−34,380** |
 
 ### P&L Attribution
 
@@ -85,7 +85,7 @@ Consistent with TXO20000P last traded Close = 452 on Apr 16 (20,000 − 452 = 19
 | Gamma (convexity cost) | −41,219 | Large moves hurt short gamma |
 | Vega (vol mark-to-mkt) | −10,990 | IV spike 26% → 62% hurt short vega |
 | Residual (model error) | +25,930 | Discrete hedging / jump residual |
-| **Net** | **−34,467** | Attribution check ✓ |
+| **Net** | **−34,380** | Attribution check ✓ |
 
 ---
 
@@ -93,7 +93,7 @@ Consistent with TXO20000P last traded Close = 452 on Apr 16 (20,000 − 452 = 19
 
 **Yes — significantly.** In a Black-Scholes world, a perfectly delta-hedged short put earns **zero per day**: theta collected exactly offsets the gamma cost for a move of size $\sigma_{\text{IV}} \cdot F \cdot \sqrt{dt}$.
 
-The actual net P&L was −NT$34,467. Three factors caused the divergence:
+The actual net P&L was −NT$34,380. Three factors caused the divergence:
 
 ### 1. Gamma dominated Theta (realized vol > implied vol)
 
@@ -140,8 +140,8 @@ The full 86–177 strike TXO option chain is used each day to build a vol smile.
 |-----------|-----------------|----------------|------------|
 | Option P&L (premium + MTM) | −15,800 | −15,800 | 0 |
 | Futures hedge P&L | −18,506 | −23,309 | −4,803 |
-| Transaction costs | −161 | −169 | −8 |
-| **Net P&L** | **−34,467** | **−39,278** | **−4,811** |
+| Transaction costs | −74 | −82 | −8 |
+| **Net P&L** | **−34,380** | **−39,191** | **−4,811** |
 
 ### P&L Attribution
 
@@ -152,7 +152,7 @@ The full 86–177 strike TXO option chain is used each day to build a vol smile.
 | Vega | −10,990 | −10,990 | Identical — same option |
 | **Delta (futures hedge)** | **−18,506** | **−23,309** | **Only difference** |
 | Residual | +25,930 | +25,930 | Identical |
-| **Net** | **−34,467** | **−39,278** | Attribution check ✓ |
+| **Net** | **−34,380** | **−39,191** | Attribution check ✓ |
 
 The option-side Greeks are identical for both models because the same contract (TXO20000P5) is held throughout — only the futures hedge quantity differs.
 
@@ -228,8 +228,8 @@ The 252-day window is chosen because it is the shortest window with strong stati
 | Premium received | +3,400 | +3,400 | — |
 | Option MTM | −19,200 | −19,200 | — |
 | Futures hedge P&L | **−18,506** | **−16,369** | **+2,137** |
-| Transaction costs | −161 | −162 | −1 |
-| **Net P&L** | **−34,467** | **−32,331** | **+2,136** |
+| Transaction costs | −74 | −75 | −1 |
+| **Net P&L** | **−34,380** | **−32,244** | **+2,136** |
 
 The entire improvement comes exclusively from the **futures side**. The option MTM is identical across models because both use the same back-solved IV for pricing.
 
@@ -350,18 +350,18 @@ With $\rho < 0$ (equity index convention), the model naturally generates a downw
 | Premium received | +3,400 | +3,400 | +3,400 | — |
 | Option MTM | −19,200 | −19,200 | −19,200 | — |
 | Futures hedge P&L | −18,506 | −16,369 | **−22,456** | **−3,950** |
-| Transaction costs | −161 | −162 | −162 | −1 |
-| **Net P&L** | **−34,467** | **−32,331** | **−38,418** | **−3,951** |
+| Transaction costs | −74 | −75 | −74 | 0 |
+| **Net P&L** | **−34,380** | **−32,244** | **−38,330** | **−3,950** |
 
 ![P&L Waterfall](notebooks/fig_m4_waterfall.png)
 
-Heston performs NT$3,951 **worse** than Black-76 — the opposite of what the theory predicts.
+Heston performs NT$3,950 **worse** than Black-76 — the opposite of what the theory predicts.
 
 ---
 
 ### Did Results Match Expectations?
 
-No. The expectation was that daily calibration to the vol smile would produce a more accurate delta (in the same direction as the MV correction but larger, since Heston directly reads the current smile). Instead Heston under-performed BS delta by NT$3,951.
+No. The expectation was that daily calibration to the vol smile would produce a more accurate delta (in the same direction as the MV correction but larger, since Heston directly reads the current smile). Instead Heston under-performed BS delta by NT$3,950.
 
 ---
 
@@ -417,7 +417,7 @@ RMSE on normal days is 2–5 pts. On Mar 19 (unusual smile structure on backtest
 
 | Finding | Detail |
 |---------|--------|
-| **Direction** | Heston is NT$3,951 *worse* than BS — daily recalibration backfired |
+| **Direction** | Heston is NT$3,950 *worse* than BS — daily recalibration backfired |
 | **Root cause** | Degenerate calibration (v₀ ≪ IV²) → under-hedging throughout |
 | **Crash failure** | ρ flips sign on Apr 7 → model reduces position during crash |
 | **Calibration stability** | RMSE spikes 5–8× on key crisis days → unreliable deltas |
@@ -445,9 +445,9 @@ The policy $\delta_t = \pi_\theta(s_t)$ is parameterised by a two-layer LSTM (hi
 |---|---|---|---|---|
 | Premium received | +3,400 | +3,400 | +3,400 | **+3,400** |
 | Option MTM | −19,200 | −19,200 | −19,200 | **−19,200** |
-| Futures hedge P&L | −18,506 | −16,369 | −22,456 | **−6,144** |
-| Transaction costs | −161 | −162 | −162 | **−142** |
-| **Net P&L** | **−34,467** | **−32,331** | **−38,418** | **−22,086** |
+| Futures hedge P&L | −18,506 | −16,369 | −22,456 | **−15,585** |
+| Transaction costs | −74 | −75 | −74 | **−50** |
+| **Net P&L** | **−34,380** | **−32,244** | **−38,330** | **−31,434** |
 
 ![P&L Waterfall](notebooks/fig_m5_waterfall.png)
 
@@ -455,12 +455,12 @@ The policy $\delta_t = \pi_\theta(s_t)$ is parameterised by a two-layer LSTM (hi
 
 ### The Key Finding: a genuine, lower-turnover hedge (CVaR₀.₉₅)
 
-Trained and evaluated at CVaR₀.₉₅, the LSTM learns a **real hedging policy** — not the degenerate "do-not-hedge" behaviour that an α = 0.50 objective produces. The learned hedge averages $|h| \approx 0.091$ contracts, comparable in size to the BS hedge ($|h_{BS}| \approx 0.097$), but its *shape* differs in two economically sensible ways:
+Trained and evaluated at CVaR₀.₉₅ with the exact TAIFEX cost schedule, the LSTM learns a **real hedging policy** — not the degenerate "do-not-hedge" behaviour that an α = 0.50 objective produces. The learned hedge is **lighter and lower-turnover** than BS:
 
-1. **Smoother, anticipatory ramp.** DH carries a larger hedge than BS during the calm pre-crash period (−0.036 to −0.05 vs BS −0.014 to −0.027 in the first week), then ramps up gradually instead of chasing delta day-to-day.
-2. **Under-hedges the crash bottom.** On Apr 7–9 DH holds only **50%, 62%, 76%** of the BS delta. BS mechanically ramps to its maximum short (−0.241) right at the Apr 9 low — just before the rally — and gets whipsawed; DH's muted bottom hedge avoids most of that loss.
+1. **Smaller, smoother position.** Mean $|h| \approx 0.073$ vs BS $0.097$ (~75% of the BS hedge), ramped smoothly rather than chasing delta day-to-day.
+2. **Under-hedges the crash bottom.** On Apr 7–9 DH holds only **33%, 46%, 59%** of the BS delta. BS mechanically ramps to its maximum short (−0.241) right at the Apr 9 low — just before the rally — and gets whipsawed; DH's muted bottom hedge avoids most of that loss.
 
-The net effect: DH runs **31% less turnover** than BS (0.30 vs 0.43 contracts), cutting both transaction costs and whipsaw drag. Futures P&L is **−6,144 vs BS −18,506**, and net P&L is **−22,086 vs BS −34,467** (+NT$12,381). This is an improvement driven by *efficient, smoother hedging* — not by abstaining from hedging.
+The net effect: DH runs **50% less turnover** than BS (0.22 vs 0.43 contracts), giving the **lowest transaction cost of any model (−NT$50)** and the **best futures P&L of any directional hedger (−15,585** vs BS −18,506 and MV −16,369). Net P&L is **−31,434 vs BS −34,380** (+NT$2,946) — narrowly the best of the five. The edge comes from *efficient, low-turnover hedging* — not from abstaining.
 
 ![Delta Comparison](notebooks/fig_m5_delta_compare.png)
 
@@ -476,11 +476,11 @@ The net effect: DH runs **31% less turnover** than BS (0.30 vs 0.43 contracts), 
 
 #### 1. Lower-turnover, anticipatory hedge (the intended effect)
 
-The CVaR objective with explicit transaction costs rewards hedging *efficiently*. The LSTM front-loads its hedge in the calm period and avoids chasing delta tick-for-tick — 31% less turnover than BS (0.30 vs 0.43). On the April crash-rally-crash path this directly avoided whipsaw rebalancing losses, the single largest reason DH beat BS.
+The CVaR objective with explicit, value-based transaction costs rewards hedging *efficiently*. The LSTM runs a lighter book and avoids chasing delta tick-for-tick — 50% less turnover than BS (0.22 vs 0.43) and the lowest costs of any model (−NT$50). On the April crash-rally-crash path this directly avoided whipsaw rebalancing losses, the single largest reason DH beat BS.
 
 #### 2. Under-hedging the crash bottom — out-of-distribution shock
 
-The April 7 single-day −10.5% return (Trump tariff shock) sits at the extreme tail (< 0.5% of training windows). Because the network rarely saw such jumps, it does not ramp to the BS maximum at the bottom — holding 50–76% of BS delta on Apr 7–9. On this path that under-hedge *helped* (the market rallied off the low), but it is a symptom of data scarcity at the tail, not foresight.
+The April 7 single-day −10.5% return (Trump tariff shock) sits at the extreme tail (< 0.5% of training windows). Because the network rarely saw such jumps, it does not ramp to the BS maximum at the bottom — holding 33–59% of BS delta on Apr 7–9. On this path that under-hedge *helped* (the market rallied off the low), but it is a symptom of data scarcity at the tail, not foresight.
 
 #### 3. Training IV ≠ Backtest IV
 
@@ -502,7 +502,7 @@ Only ~40 training windows across 30 years of TAIEX history contain a single-day 
 |-------|--------------|----------------|
 | A — Crash Distribution | April 7 is in the bottom 0.5% of worst-day returns in training windows | Model trained on <1% crash frequency; insufficient signal |
 | B — IV Regime Shift | HV20 ≈ 26–32% throughout; actual IV spikes to 62% on Apr 8–9 | Model's IV feature is OOD during crisis |
-| C — Under/Over-Hedging | DH tracks BS in size but under-hedges the crash bottom (50–76% of BS delta on Apr 7–9) | Smoother, lower-turnover hedge |
+| C — Under/Over-Hedging | DH runs a lighter book and under-hedges the crash bottom (33–59% of BS delta on Apr 7–9) | Smoother, lower-turnover hedge |
 | D — CVaR α Sensitivity | CVaR rises steeply from α = 0.90 → 0.95 → 0.99 | Higher α concentrates on rarer crash scenarios |
 
 ---
@@ -511,8 +511,8 @@ Only ~40 training windows across 30 years of TAIEX history contain a single-day 
 
 | Finding | Detail |
 |---------|--------|
-| **Net P&L** | −NT$22,086 (+NT$12,381 vs BS); best of all 5 models |
-| **Mechanism** | Genuine hedge with 31% lower turnover than BS; under-hedges the crash bottom |
+| **Net P&L** | −NT$31,434 (+NT$2,946 vs BS); best of all 5 models |
+| **Mechanism** | Genuine hedge with 50% lower turnover than BS; lowest cost, best futures P&L; under-hedges the crash bottom |
 | **Why it beat BS here** | Smoother, cost-aware hedge avoided most of BS's NT$18,506 whipsaw loss |
 | **Is it a robust strategy?** | More so than the α=0.50 "no-hedge" version — it carries real downside protection — but still under-reacts to OOD jumps |
 | **Role of α** | α=0.95 (95% ES) induces real hedging; α=0.50 degenerates to no-hedge; α=0.99 would weight rare crashes more |
@@ -522,10 +522,10 @@ Only ~40 training windows across 30 years of TAIEX history contain a single-day 
 
 | Rank | Model | Net P&L | vs BS |
 |------|-------|---------|-------|
-| 1 | M5 Deep Hedging | −NT$22,086 | +12,381 |
-| 2 | M3 MV Delta | −NT$32,331 | +2,136 |
-| 3 | M1 Black-76 | −NT$34,467 | baseline |
-| 4 | M4 Heston SV | −NT$38,418 | −3,951 |
+| 1 | M5 Deep Hedging | −NT$31,434 | +2,946 |
+| 2 | M3 MV Delta | −NT$32,244 | +2,136 |
+| 3 | M1 Black-76 | −NT$34,380 | baseline |
+| 4 | M4 Heston SV | −NT$38,330 | −3,950 |
 
 **Take-away:** With a principled risk measure (α = 0.95, 95% ES), Deep Hedging learns an economically sensible policy — hedge efficiently, avoid whipsaw, under-react to extreme jumps it has rarely seen — and ranks best on this backtest for the *right* reason (turnover/whipsaw reduction), not the accidental "never hedge" of α = 0.50. Simple, interpretable models (M3 MV delta) remain the most reliable improvement with limited data; Deep Hedging's potential is real but requires more crash-regime training data and a live IV state to fully realise its theoretical advantage.
 
@@ -617,8 +617,14 @@ jupyter notebook notebooks/model5_deep_hedging.ipynb   # Model 5: Deep Hedging (
 
 ## Transaction Cost Assumptions
 
+Exact TAIFEX schedule (期貨暨選擇權商品相關費用表, `data/raw/Fee.png`), per contract, per side. Broker commission (手續費) is negotiable / institution-specific and excluded.
+
 | Item | Assumption |
 |------|-----------|
-| TX exchange + broker | NT$100 per contract (proportional for fractional lots) |
-| TXO exchange + broker | NT$100 one-time at inception |
+| TX exchange fee | 交易經手費 12 + 結算手續費 8 = NT$20 / contract |
+| TX transaction tax | 0.00002 × notional (200 × F) ⇒ ≈ NT$69–88 / contract over the window |
+| TX all-in | NT$20 + 0.004 × F per contract, proportional to \|Δh\| each rebalance |
+| TXO exchange fee | 交易經手費 6 + 結算手續費 4 = NT$10 / contract |
+| TXO transaction tax | 0.001 × premium (50 × pts) ⇒ NT$3.4 on the 68-pt put |
+| TXO all-in | NT$10 + 0.05 × premium_pts, one-time at inception (≈ NT$13) |
 | Slippage | 0 (trading at exact settlement price) |

@@ -94,11 +94,17 @@ Resulting smile coverage: 86 strikes on Mar 19 (delta range −0.995 to −0.026
 
 ## Transaction Costs
 
+Exact TAIFEX schedule (期貨暨選擇權商品相關費用表, `data/raw/Fee.png`), per contract, per side. Broker commission (手續費) is negotiable / institution-specific and excluded.
+
 | Item | Amount | Applied |
 |------|--------|---------|
-| TX (exchange + broker) | NT$100 per contract | Proportional to |Δh| each rebalance day |
-| TXO (exchange + broker) | NT$100 per contract | Once at inception (day 0) |
+| TX exchange fee | 交易經手費 12 + 結算費 8 = NT$20/contract | Proportional to |Δh| each rebalance |
+| TX transaction tax | 0.00002 × (200 × F) per contract | Proportional to |Δh| each rebalance |
+| TXO exchange fee | 交易經手費 6 + 結算費 4 = NT$10/contract | Once at inception (day 0) |
+| TXO transaction tax | 0.001 × (50 × premium_pts) per contract | Once at inception (day 0) |
 | Slippage | 0 index points | Trading at exact settlement price |
+
+TX all-in = **NT$20 + 0.004·F** per contract (≈ NT$88 at F=22,018); TXO all-in = **NT$10 + 0.05·premium_pts** ≈ NT$13 at inception.
 
 ---
 
@@ -127,8 +133,8 @@ Resulting smile coverage: 86 strikes on Mar 19 (delta range −0.995 to −0.026
 | Premium received | +3,400 |
 | Option MTM | −19,200 |
 | Futures hedge P&L | −18,506 |
-| Transaction costs | −161 |
-| **Net P&L** | **−34,467** |
+| Transaction costs | −74 |
+| **Net P&L** | **−34,380** |
 
 **Attribution:**
 
@@ -139,7 +145,7 @@ Resulting smile coverage: 86 strikes on Mar 19 (delta range −0.995 to −0.026
 | Vega (vol mark-to-mkt) | −10,990 |
 | Delta (futures hedge) | −18,506 |
 | Residual | +25,930 |
-| **Net** | **−34,467** ✓ |
+| **Net** | **−34,380** ✓ |
 
 **Why results differed from expectations (BS null = zero P&L):**
 1. Realized vol far exceeded IV on Apr 7–9 (moves 2.1–2.7× breakeven) → gamma dominated theta
@@ -186,7 +192,7 @@ The notebook implements the exact paper (policy gradient + LSTM + CVaR objective
 | **Framework** | TensorFlow 1.x (`tf.Session`, `tf.placeholder`, `tf.contrib.rnn`) | Migrate to TF2/Keras or PyTorch — TF1 APIs are removed in TF2+ |
 | **Option type** | Long CALL: payoff = `max(S_T − K, 0)` | Short PUT: payoff = `−max(K − S_T, 0)`; flip P&L sign |
 | **State variables** | `[S_t]` only | `[S_t/K, σ_IV_t, t/T, Δ_{t-1}, cost_per_unit]` — 5 features |
-| **Transaction costs** | Not included | `NT$100 × |Δh|` per rebalance; affects CVaR objective |
+| **Transaction costs** | Not included | TX `(20+0.004·F)×|Δh|` + TXO `(10+0.05·prem)`; affects CVaR objective |
 | **Training data** | 50,000 GBM simulated paths | Rolling 19-day windows from `^twse_d.csv` (1995–2024); 7,452 windows available |
 | **Multipliers** | Normalized (S_0=100, K=100) | Scale by OPT_MULT=50, FUT_MULT=200; hedge ratio = 0.25 |
 
@@ -306,11 +312,11 @@ n_features  = 5        # expanded state
 |-----------|-------------|-------------|-----------|---------------------|
 | Premium   | +3,400 | +3,400 | +3,400 | +3,400 |
 | Option MTM | −19,200 | −19,200 | −19,200 | −19,200 |
-| Futures P&L | −18,506 | −16,369 | −22,456 | **−6,144** |
-| Costs | −161 | −162 | −162 | −142 |
-| **Net P&L** | **−34,467** | **−32,331** | **−38,418** | **−22,086** |
+| Futures P&L | −18,506 | −16,369 | −22,456 | **−15,585** |
+| Costs | −74 | −75 | −74 | −50 |
+| **Net P&L** | **−34,380** | **−32,244** | **−38,330** | **−31,434** |
 
-**Key finding:** Trained and evaluated at CVaR₀.₉₅ (95% Expected Shortfall), the LSTM learns a **genuine hedge** — not the degenerate "do-not-hedge" policy that α=0.50 produces. Mean |h| ≈ 0.091 contracts (vs BS 0.097), but the policy is smoother and lower-turnover: it front-loads the hedge in the calm period, ramps gradually, and **under-hedges the crash bottom** (holds 50/62/76% of BS delta on Apr 7–9). Turnover is 31% below BS (0.30 vs 0.43), which avoided most of BS's whipsaw loss during the crash→rally→crash sequence. Net result beats BS by +NT$12,381 for the right reason (efficient hedging), not by abstaining. Caveat: the under-hedge at the bottom reflects April 7 being out-of-distribution (<0.5% of training windows), so it helped here partly by luck.
+**Key finding:** Trained and evaluated at CVaR₀.₉₅ (95% Expected Shortfall) with the exact TAIFEX cost schedule, the LSTM learns a **genuine hedge** — not the degenerate "do-not-hedge" policy that α=0.50 produces. It runs a **lighter, lower-turnover** book: mean |h| ≈ 0.073 (vs BS 0.097) and **50% less turnover** (0.22 vs 0.43), giving the **lowest cost of any model (−NT$50)** and the **best futures P&L of any directional hedger (−15,585** vs BS −18,506, MV −16,369). It **under-hedges the crash bottom** (holds 33/46/59% of BS delta on Apr 7–9), avoiding most of BS's whipsaw during the crash→rally→crash sequence. Net beats BS by +NT$2,946 — narrowly the best of the five — for the right reason (efficient hedging), not by abstaining. Caveat: the under-hedge at the bottom reflects April 7 being out-of-distribution (<0.5% of training windows), so it helped here partly by luck; the margin over MV delta is only ~NT$810.
 
 **Implementation note:** Uses PyTorch 2.x (not TF2/Keras as originally planned — TF2 not available; PyTorch installed via conda base). Architecture: Input(5) → LSTM-62 → LSTM-46 → Dense(1) → tanh × 0.25. Trained at α=0.95, batch 256, 100 epochs on 7,478 rolling 18-period windows from TAIEX 1995-01-05 → 2025-03-18. Weights cached at `data/processed/model5_weights.pt`.
 
@@ -322,7 +328,7 @@ n_features  = 5        # expanded state
 Day 0 (2025/03/19):
     Sell TXO20000P5 at settlement price P_0 = 68 pts → receive NT$3,400 premium
     Compute IV_0, delta_0, h_0 = −|delta_0| × 0.25 TX contracts
-    Pay inception cost = NT$100 (TXO) + NT$100 × |h_0| (TX)
+    Pay inception cost = TXO (10 + 0.05×P_0) + TX (20 + 0.004×F_0) × |h_0|
 
 For each trading day t from 2025/03/20 to 2025/04/15:
     1. Load: F_t (TX Apr settlement), P_t (TXO20000P settlement), r_t (CBC CP)
@@ -330,7 +336,7 @@ For each trading day t from 2025/03/20 to 2025/04/15:
     3. IV_t = implied_vol(F_t, K=20000, r_t, T_t, P_t)  [bisection, Black-76]
     4. Greeks: delta_t, gamma_t, vega_t, theta_t = bs_put_greeks(F_t, K, r_t, T_t, IV_t)
     5. h_t = −|delta_t| × 0.25  [new hedge target, negative = short]
-    6. Δh = h_t − h_{t-1}; cost_t = NT$100 × |Δh|
+    6. Δh = h_t − h_{t-1}; cost_t = (20 + 0.004×F_t) × |Δh|
     7. PnL_option_t  = −(P_t − P_{t-1}) × 50
        PnL_futures_t = h_{t-1} × (F_t − F_{t-1}) × 200
        Daily PnL_t   = PnL_option_t + PnL_futures_t − cost_t
@@ -339,7 +345,7 @@ Expiry day (2025/04/16):
     8. S_final = 19,548 (official TAIFEX 最終結算價)
     9. PnL_option = −(intrinsic − P_{T-1}) × 50 = −(452 − 258) × 50 = −NT$9,700
     10. PnL_futures = h_{T-1} × (S_final − F_{T-1}) × 200
-    11. Close futures position; pay cost = NT$100 × |h_{T-1}|
+    11. Close futures position; pay cost = (20 + 0.004×S_final) × |h_{T-1}|
 ```
 
 ---
