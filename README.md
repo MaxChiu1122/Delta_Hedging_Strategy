@@ -85,6 +85,7 @@ Consistent with TXO20000P last traded Close = 452 on Apr 16 (20,000 − 452 = 19
 | Gamma (convexity cost) | −41,219 | Large moves hurt short gamma |
 | Vega (vol mark-to-mkt) | −10,990 | IV spike 26% → 62% hurt short vega |
 | Residual (model error) | +25,930 | Discrete hedging / jump residual |
+| Transaction costs | −74 | TAIFEX exchange fee + tax |
 | **Net** | **−34,380** | Attribution check ✓ |
 
 ---
@@ -152,6 +153,7 @@ The full 86–177 strike TXO option chain is used each day to build a vol smile.
 | Vega | −10,990 | −10,990 | Identical — same option |
 | **Delta (futures hedge)** | **−18,506** | **−23,309** | **Only difference** |
 | Residual | +25,930 | +25,930 | Identical |
+| Transaction costs | −74 | −82 | Slightly higher (more turnover) |
 | **Net** | **−34,380** | **−39,191** | Attribution check ✓ |
 
 The option-side Greeks are identical for both models because the same contract (TXO20000P5) is held throughout — only the futures hedge quantity differs.

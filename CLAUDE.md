@@ -145,6 +145,7 @@ TX all-in = **NT$20 + 0.004·F** per contract (≈ NT$88 at F=22,018); TXO all-i
 | Vega (vol mark-to-mkt) | −10,990 |
 | Delta (futures hedge) | −18,506 |
 | Residual | +25,930 |
+| Transaction costs | −74 |
 | **Net** | **−34,380** ✓ |
 
 **Why results differed from expectations (BS null = zero P&L):**
