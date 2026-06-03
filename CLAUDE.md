@@ -166,10 +166,10 @@ TX all-in = **NT$20 + 0.004·F** per contract (≈ NT$88 at F=22,018); TXO all-i
 ```
 Δ_MV = Δ_BS + Vega_BS × β_σS
 ```
-where `β_σS = Cov(Δσ, ΔS/S) / Var(ΔS/S)` estimated from rolling 60-day regression of daily IV changes on daily index returns (using data prior to t₀ for initialization, updating daily during backtest).
+where `β_σS = Cov(Δσ, ΔS/S) / Var(ΔS/S)` estimated from rolling 252-day (1-year) regression of daily IV changes on daily index returns (using data prior to t₀ for initialization, updating daily during backtest).
 
 - `^twse_d.csv` close returns + daily IV back-solved from TXO provide the regression inputs
-- Initialize from Jan–Mar 2025 (60 trading days before 03/19); update rolling each day
+- Initialize from the 252 trading days (~1 year) before 03/19; update rolling each day
 - No lookahead: β_σS at date t uses only data through t−1
 
 ### Model 4: Heston Stochastic Volatility — ✅ Complete

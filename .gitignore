@@ -16,6 +16,9 @@ __pycache__/
 # Reference notebook (kept locally, excluded from repo)
 DerivativesHedging.ipynb
 
+# Local-only speaker notes (not for the repo)
+presentation_speech_zh.md
+
 # Presentation build artifacts
 preview_pages/
 *.aux

@@ -315,7 +315,7 @@
       \[ \beta_{\sigma S}=\frac{\mathrm{Cov}(\Delta\sigma,\ \Delta S/S)}{\mathrm{Var}(\Delta S/S)} \]
       \begin{itemize}\small
         \item Captures the leverage effect: vol rises when spot falls $\Rightarrow$ extra short.
-        \item $\beta$ from rolling 60-day regression, initialised pre-$t_0$, updated daily (no lookahead).
+        \item $\beta$ from rolling 252-day (1-year) regression, initialised pre-$t_0$, updated daily (no lookahead).
       \end{itemize}
       \begin{exampleblock}{Result --- best classical model}
         \small Net \loss{$-$\nt{32{,}244}} \;(\gain{$+$\nt{2{,}136}} vs.\ baseline). A small, \textbf{robust} improvement from a stable parameter.
