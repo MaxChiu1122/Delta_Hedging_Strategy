@@ -2,6 +2,25 @@
 
 Delta-neutral dynamic hedging backtest for a short TAIFEX index option position, covering data acquisition, Black-76 pricing, daily rebalancing, P&L attribution, and statistical analysis of hedging error.
 
+> **A personal quantitative-research project.** I take one realistic options position — a short index put on the Taiwan Futures Exchange (TAIFEX) — and ask a deceptively simple question: *how well can you actually delta-hedge it, and does a more sophisticated hedging model help?* The backtest window happens to contain the **April 2025 tariff shock** (a ≈ −2.7σ single-day jump), which turns the exercise into a stress test of five hedging approaches under a real tail event.
+
+## What this project does
+
+- **No-lookahead daily backtest** of a delta-neutral hedge for a short TAIFEX put, executing strictly at official settlement prices (no future information leaks into any decision).
+- **Five hedging models** of increasing sophistication — from textbook Black-76 delta to a deep-learning (LSTM) hedger — compared on the *same* price path.
+- **Full P&L attribution**: every dollar is decomposed into theta / gamma / vega / delta-hedge / jump-residual / costs, so the loss is *explained*, not just reported.
+- **Exact TAIFEX cost model** (exchange fee + transaction tax from the published schedule), not a round-number proxy.
+
+## Key takeaways (TL;DR)
+
+1. **Even a "correct" delta hedge lost money** (≈ −NT$34k on the baseline). The April jump made realised volatility far exceed implied, so short-gamma losses overwhelmed the theta collected — this is *structural*, not a coding error.
+2. **More sophistication did not guarantee better results.** Heston (the most complex classical model) ranked **last**: calibrating 5 parameters to a single expiry is ill-posed and produced an unstable, degenerate fit during the crisis.
+3. **What actually helped was turnover control + a tail-aware objective.** Minimum-Variance delta and a cost-aware Deep-Hedging LSTM both *modestly* beat the baseline by hedging more efficiently (lower turnover, less whipsaw).
+4. **Honest caveat:** this is a **single 19-day path (n = 1)**, so the model ranking is illustrative, not statistically significant — the spread from best to worst is only ≈ NT$7.8k. Treat the relative numbers as a case study, not a verdict.
+
+📊 **Slides:** a 19-slide walkthrough is in [`Delta_Hedging_Presentation.pdf`](Delta_Hedging_Presentation.pdf).
+🛠️ **Tech stack:** Python (NumPy / pandas / SciPy), PyTorch (Deep Hedging), Matplotlib; analysis in Jupyter notebooks under [`notebooks/`](notebooks/).
+
 ---
 
 ## The Trade

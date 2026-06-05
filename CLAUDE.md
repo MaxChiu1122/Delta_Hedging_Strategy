@@ -1,4 +1,4 @@
-# KGI Interview: Delta-Neutral Hedging Backtest
+# Delta-Neutral Hedging Backtest — Project Notes
 
 ## Position & Objective
 
