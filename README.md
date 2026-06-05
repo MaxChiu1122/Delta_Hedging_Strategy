@@ -614,25 +614,39 @@ Delta_Hedging_Strategy/
 
 ---
 
-## How to Run
+## Environment
+
+- **Python 3.13** (3.10+ should work).
+- Dependencies are pinned in [`requirements.txt`](requirements.txt): `numpy`, `pandas`, `scipy`, `matplotlib`, `torch` (Model 5), `jupyter`.
+- Tested with numpy 2.4, pandas 3.0, scipy 1.17, matplotlib 3.10, torch 2.7.
 
 ```bash
-# Install dependencies
-pip install pandas numpy scipy matplotlib jupyter
+python -m venv .venv && source .venv/bin/activate   # optional virtual env
+pip install -r requirements.txt
+```
 
-# Run Model 1 backtest engine (prints per-day table + summary)
+## How to Reproduce
+
+All inputs are in `data/raw/` (immutable), so the full study reproduces end-to-end from this repo.
+
+```bash
+# 1) Baseline backtest engine — prints the per-day table + P&L summary
 python -m backtest.engine
 
-# Launch notebooks
-jupyter notebook notebooks/model1_backtest.ipynb        # Model 1: BS delta hedge
-jupyter notebook notebooks/model2_sticky_regimes.ipynb  # Model 2: regime comparison
-jupyter notebook notebooks/model3_mv_delta.ipynb        # Model 3: minimum variance delta
-jupyter notebook notebooks/model4_heston_sv.ipynb       # Model 4: Heston stochastic vol
-
-# Model 5 requires PyTorch (install via conda):
-# conda install -n base pytorch -c pytorch
-jupyter notebook notebooks/model5_deep_hedging.ipynb   # Model 5: Deep Hedging (RL/LSTM)
+# 2) Run the five model notebooks in order (each writes its CSV/figures
+#    to data/processed/ and notebooks/, which later models reload):
+jupyter notebook notebooks/model1_backtest.ipynb        # Black-76 delta hedge (baseline)
+jupyter notebook notebooks/model2_sticky_regimes.ipynb  # Sticky-strike vs sticky-delta
+jupyter notebook notebooks/model3_mv_delta.ipynb        # Minimum-variance delta
+jupyter notebook notebooks/model4_heston_sv.ipynb       # Heston stochastic vol
+jupyter notebook notebooks/model5_deep_hedging.ipynb    # Deep Hedging (LSTM, PyTorch)
 ```
+
+Notes:
+- **Order matters** — Models 4 and 5 read the CSVs produced by Models 1 and 3.
+- **Model 5 trains an LSTM** (~9 min on CPU); trained weights are cached at
+  `data/processed/model5_weights.pt`, so re-runs are fast. Delete that file to retrain from scratch. A fixed seed (42) makes training reproducible.
+- Expected headline numbers are the net P&Ls in the [Models Overview](#models-overview) table.
 
 ---
 
@@ -649,3 +663,13 @@ Exact TAIFEX schedule (期貨暨選擇權商品相關費用表, `data/raw/Fee.pn
 | TXO transaction tax | 0.001 × premium (50 × pts) ⇒ NT$3.4 on the 68-pt put |
 | TXO all-in | NT$10 + 0.05 × premium_pts, one-time at inception (≈ NT$13) |
 | Slippage | 0 (trading at exact settlement price) |
+
+---
+
+## License
+
+Released under the [MIT License](LICENSE) — free to use, modify, and distribute with attribution.
+
+## Disclaimer
+
+This is a personal research / educational project. It is **not** investment advice, and the results come from a single short backtest window (n = 1); see the n = 1 caveat in *Key takeaways* above. Nothing here represents any employer or institution.
